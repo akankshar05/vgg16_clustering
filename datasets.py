@@ -1,5 +1,6 @@
 import tensorflow as tf
 from copy import deepcopy
+import numpy as np
 
 class DataSet(object):
     def __init__(self, load_fun, target, classes, augmentation=True):
@@ -8,24 +9,35 @@ class DataSet(object):
         (self.x_train, self.y_train), (self.x_test, self.y_test) = load_fun
         self.x_train = self.x_train.astype("float32") / 255.
         self.x_test = self.x_test.astype("float32") / 255.
-
-        self.x_train, self.y_train = self.x_train[:50], self.y_train[:50]
-        self.x_test, self.y_test = self.x_test[:50], self.y_test[:50]
+        print(self.x_train[0].shape)
+        print(type(self.x_train[0]))
+        # self.x_train, self.y_train = self.x_train[:10], self.y_train[:10]
+        # self.x_test, self.y_test = self.x_test[:10], self.y_test[:10]
+        print("reshaping of training images started")
         self.x_train= self.reshape_images(self.x_train)
+        print("reshaping of testing images started")
         self.x_test= self.reshape_images(self.x_test)
+        print("reshaping ended")
+        print(self.x_train[0].shape)
+        print(type(self.x_train[0]))
+
 
         self.train_samples = self.x_train.shape[0]
         self.target = target
         self.classes = classes
         self.augmentation = augmentation
-
+        print("making of deepcopy")
         self.x_train_poison, self.y_train_poison, self.x_test_poison, self.y_test_poison, =\
             deepcopy(self.x_train), deepcopy(self.y_train), deepcopy(self.x_test), deepcopy(self.y_test)
+        print("deep copy making done")
         
 
         #generators are returned here
+        print("preprocess started")
         self.image_gen = self.preprocess()
+        print("preprocess_poison started")
         self.image_gen_poison = self.preprocess_poison()
+        print("preprocess_ended")
 
         #initialization k baad we have :
         #x_train, y_train, x_test, y_test, x_train_poison, y_train_poison, x_test_poison, y_test_poison 
@@ -36,7 +48,8 @@ class DataSet(object):
         #=> 
     def reshape_images(self, images):
         resized_images = tf.image.resize(images, size=(224, 224), method=tf.image.ResizeMethod.BILINEAR)
-        return resized_images
+        resized_images_np = np.array(resized_images)
+        return resized_images_np
 
 
     def preprocess(self):
@@ -92,16 +105,14 @@ class DataSet(object):
         ds_test = tf.data.Dataset.from_tensor_slices((self.x_test, self.y_test)) \
             .batch(batch_size).prefetch(tf.data.experimental.AUTOTUNE)
 
-        ds_test_backdoor = tf.data.Dataset.from_tensor_slices((self.x_test_poison, self.y_test_poison)) \
+        ds_test_backdoor = tf.data.Dataset.from_tensor_slices((self.x_test_poison, self.y_test)) \
+            .batch(batch_size).prefetch(tf.data.experimental.AUTOTUNE)
+        ds_test_backdoor_y_poison = tf.data.Dataset.from_tensor_slices((self.x_test_poison, self.y_test_poison)) \
             .batch(batch_size).prefetch(tf.data.experimental.AUTOTUNE)
 
-        exclude_target_index = tf.where(tf.squeeze(self.y_test) != 0)
-        ds_test_backdoor_exclude_target = tf.data.Dataset.from_tensor_slices(
-            (tf.gather_nd(self.x_test_poison, exclude_target_index),
-             tf.gather_nd(self.y_test_poison, exclude_target_index))
-        ).batch(batch_size).prefetch(tf.data.experimental.AUTOTUNE)
+    
 
-        return ds_train, ds_train_backdoor, ds_train_backdoor_y_poison, ds_test, ds_test_backdoor, ds_test_backdoor_exclude_target
+        return ds_train, ds_train_backdoor, ds_train_backdoor_y_poison, ds_test, ds_test_backdoor, ds_test_backdoor_y_poison
 
 
 def Cifar10(target=0):

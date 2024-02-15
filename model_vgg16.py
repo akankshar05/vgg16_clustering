@@ -40,7 +40,7 @@ class VGG16Sequential:
 
         model.add(Dense(256, activation='relu'))
         model.add(Dense(128, activation='relu'))
-        model.add(Dense(1, activation='sigmoid'))
+        model.add(Dense(10, activation='softmax'))
 
         return model
     
